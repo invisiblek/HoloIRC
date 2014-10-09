@@ -22,7 +22,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Vibrator;
 import android.support.v4.app.NotificationCompat;
-import android.text.Spannable;
+import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
@@ -209,7 +209,7 @@ public class NotificationUtils {
 
         // As not all colors look nice in the notification,
         // replace them with a neutral color
-        Spannable spannable = (Spannable) message;
+        SpannableString spannable = new SpannableString(message);
         Object[] colorSpans = spannable.getSpans(0, spannable.length(),
                 ForegroundColorSpan.class);
         for (Object span : colorSpans) {
