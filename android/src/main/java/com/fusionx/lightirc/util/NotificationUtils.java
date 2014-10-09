@@ -86,7 +86,7 @@ public class NotificationUtils {
         }
     }
 
-    public static void notifyOutOfApp(final Context context,
+    public static void notifyOutOfApp(final Context context, CharSequence message,
             final Conversation<? extends Event> conversation, final boolean channel) {
         if (!AppPreferences.getAppPreferences().isOutOfAppNotification()) {
             return;
@@ -106,8 +106,8 @@ public class NotificationUtils {
             sNotificationQueryCount++;
         }
 
-        CharSequence message = getLatestMessageForConversation(context, conversation);
         if (message != null) {
+            message = convertColorSpans(context, message);
             if (sNotificationMessages.size() >= MAX_NOTIFICATION_LINES) {
                 sNotificationMessages.remove(0);
             }
@@ -220,14 +220,7 @@ public class NotificationUtils {
         notificationManager.cancel(NOTIFICATION_MENTION);
     }
 
-    private static CharSequence getLatestMessageForConversation(
-            Context context, Conversation<? extends Event> conversation) {
-        List<? extends Event> events = conversation.getBuffer();
-        if (events == null || events.isEmpty()) {
-            return null;
-        }
-        EventCache cache = IRCService.getEventCache(conversation.getServer());
-        CharSequence message = cache.get(events.get(events.size() - 1)).getMessage();
+    private static CharSequence convertColorSpans(Context context, CharSequence message) {
         if (message == null || !(message instanceof Spanned)) {
             return message;
         }

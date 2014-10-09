@@ -7,6 +7,9 @@ import com.fusionx.lightirc.event.OnConversationChanged;
 import com.fusionx.lightirc.event.OnDCCChatEvent;
 import com.fusionx.lightirc.event.OnQueryEvent;
 import com.fusionx.lightirc.misc.AppPreferences;
+import com.fusionx.lightirc.misc.EventCache;
+import com.fusionx.lightirc.misc.IRCEventToStringConverter;
+import com.fusionx.lightirc.model.EventDecorator;
 import com.fusionx.lightirc.model.MessagePriority;
 
 import android.os.Handler;
@@ -143,8 +146,12 @@ public final class ServiceEventInterceptor {
                 if (userEvent.userMentioned) {
                     onIRCEvent(MessagePriority.HIGH, conversation, event);
 
+                    EventCache cache = IRCService.getEventCache(conversation.getServer());
+                    CharSequence message = cache.get(event).getMessage();
+
                     // Forward the event UI side
-                    mHandler.post(() -> getBus().post(new OnChannelMentionEvent(event.channel)));
+                    mHandler.post(() -> getBus().post(
+                            new OnChannelMentionEvent(event.channel, message)));
                 } else if (event.getClass().equals(ChannelWorldMessageEvent.class)
                         || event.getClass().equals(ChannelWorldActionEvent.class)) {
                     onIRCEvent(MessagePriority.MEDIUM, conversation, event);
@@ -165,8 +172,11 @@ public final class ServiceEventInterceptor {
         if (shouldStoreEvent(event)) {
             onIRCEvent(MessagePriority.HIGH, event.user, event);
 
+            EventCache cache = IRCService.getEventCache(event.user.getServer());
+            CharSequence message = cache.get(event).getMessage();
+
             // Forward the event UI side
-            mHandler.post(() -> getBus().post(new OnQueryEvent(event.user)));
+            mHandler.post(() -> getBus().post(new OnQueryEvent(event.user, message)));
         }
     }
 
