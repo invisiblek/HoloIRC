@@ -2,8 +2,6 @@ package com.fusionx.lightirc.util;
 
 import com.fusionx.lightirc.R;
 import com.fusionx.lightirc.misc.AppPreferences;
-import com.fusionx.lightirc.misc.EventCache;
-import com.fusionx.lightirc.service.IRCService;
 import com.fusionx.lightirc.ui.MainActivity;
 import com.fusionx.lightirc.view.Snackbar;
 
@@ -23,10 +21,8 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Vibrator;
 import android.support.v4.app.NotificationCompat;
-import android.text.SpannableString;
-import android.text.Spanned;
+import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
-import android.text.style.ForegroundColorSpan;
 import android.text.style.TextAppearanceSpan;
 import android.util.Pair;
 
@@ -35,6 +31,7 @@ import java.util.List;
 import java.util.Set;
 
 import co.fusionx.relay.base.Conversation;
+import co.fusionx.relay.base.Nick;
 import co.fusionx.relay.base.Server;
 import co.fusionx.relay.event.Event;
 
@@ -87,7 +84,7 @@ public class NotificationUtils {
     }
 
     public static void notifyOutOfApp(final Context context, CharSequence message,
-            final Conversation<? extends Event> conversation, final boolean channel) {
+            Nick user, final Conversation<? extends Event> conversation, final boolean channel) {
         if (!AppPreferences.getAppPreferences().isOutOfAppNotification()) {
             return;
         }
@@ -107,7 +104,9 @@ public class NotificationUtils {
         }
 
         if (message != null) {
-            message = convertColorSpans(context, message);
+            if (user != null) {
+                message = prependHighlightedText(context, user.getNickAsString(), message);
+            }
             if (sNotificationMessages.size() >= MAX_NOTIFICATION_LINES) {
                 sNotificationMessages.remove(0);
             }
@@ -170,7 +169,7 @@ public class NotificationUtils {
                         style.addLine(entry.second);
                     } else {
                         // prepend server name
-                        style.addLine(String.format("[%s] %s", entry.first, entry.second));
+                        style.addLine(prependHighlightedText(context, entry.first, entry.second));
                     }
                 }
 
@@ -220,25 +219,22 @@ public class NotificationUtils {
         notificationManager.cancel(NOTIFICATION_MENTION);
     }
 
-    private static CharSequence convertColorSpans(Context context, CharSequence message) {
-        if (message == null || !(message instanceof Spanned)) {
+    private static CharSequence prependHighlightedText(Context context,
+            String prefix, CharSequence message) {
+        if (message == null || prefix == null) {
             return message;
         }
 
-        // As not all colors look nice in the notification,
-        // replace them with a neutral color
-        SpannableString spannable = new SpannableString(message);
-        Object[] colorSpans = spannable.getSpans(0, spannable.length(),
-                ForegroundColorSpan.class);
-        for (Object span : colorSpans) {
-            int start = spannable.getSpanStart(span);
-            int end = spannable.getSpanEnd(span);
-            TextAppearanceSpan newSpan = new TextAppearanceSpan(context,
-                    R.style.TextAppearance_StatusBar_EventContent_Emphasized);
-            spannable.removeSpan(span);
-            spannable.setSpan(newSpan, start, end, 0);
-        }
-        return spannable;
+        TextAppearanceSpan highlightSpan = new TextAppearanceSpan(context,
+                R.style.TextAppearance_StatusBar_EventContent_Emphasized);
+
+        SpannableStringBuilder builder = new SpannableStringBuilder();
+        builder.append(prefix);
+        builder.setSpan(highlightSpan, 0, builder.length(), 0);
+        builder.append(" ");
+        builder.append(message);
+
+        return builder;
     }
 
     private static void registerBroadcastReceivers(Context context) {

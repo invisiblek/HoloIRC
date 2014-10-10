@@ -7,9 +7,6 @@ import com.fusionx.lightirc.event.OnConversationChanged;
 import com.fusionx.lightirc.event.OnDCCChatEvent;
 import com.fusionx.lightirc.event.OnQueryEvent;
 import com.fusionx.lightirc.misc.AppPreferences;
-import com.fusionx.lightirc.misc.EventCache;
-import com.fusionx.lightirc.misc.IRCEventToStringConverter;
-import com.fusionx.lightirc.model.EventDecorator;
 import com.fusionx.lightirc.model.MessagePriority;
 
 import android.os.Handler;
@@ -31,7 +28,9 @@ import co.fusionx.relay.event.channel.ChannelEvent;
 import co.fusionx.relay.event.channel.ChannelWorldActionEvent;
 import co.fusionx.relay.event.channel.ChannelWorldMessageEvent;
 import co.fusionx.relay.event.channel.ChannelWorldUserEvent;
+import co.fusionx.relay.event.query.QueryActionWorldEvent;
 import co.fusionx.relay.event.query.QueryEvent;
+import co.fusionx.relay.event.query.QueryMessageWorldEvent;
 import co.fusionx.relay.event.server.DCCChatRequestEvent;
 import co.fusionx.relay.event.server.DCCRequestEvent;
 import co.fusionx.relay.event.server.DCCSendRequestEvent;
@@ -140,23 +139,21 @@ public final class ServiceEventInterceptor {
         if (shouldStoreEvent(event)) {
             // TODO - fix this horrible code
             final Conversation conversation = event.channel;
-            if (event instanceof ChannelWorldUserEvent) {
+            if (event instanceof ChannelWorldMessageEvent
+                    || event instanceof ChannelWorldActionEvent) {
                 final ChannelWorldUserEvent userEvent = (ChannelWorldUserEvent) event;
-
                 if (userEvent.userMentioned) {
                     onIRCEvent(MessagePriority.HIGH, conversation, event);
 
-                    EventCache cache = IRCService.getEventCache(conversation.getServer());
-                    CharSequence message = cache.get(event).getMessage();
-
                     // Forward the event UI side
-                    mHandler.post(() -> getBus().post(
-                            new OnChannelMentionEvent(event.channel, message)));
-                } else if (event.getClass().equals(ChannelWorldMessageEvent.class)
-                        || event.getClass().equals(ChannelWorldActionEvent.class)) {
-                    onIRCEvent(MessagePriority.MEDIUM, conversation, event);
+                    String message = event instanceof ChannelWorldMessageEvent
+                            ? ((ChannelWorldMessageEvent) event).message
+                            : ((ChannelWorldActionEvent) event).action;
+                    OnChannelMentionEvent uiEvent = new OnChannelMentionEvent(event.channel,
+                            userEvent.userNick, message);
+                    mHandler.post(() -> getBus().post(uiEvent));
                 } else {
-                    onIRCEvent(MessagePriority.LOW, conversation, event);
+                    onIRCEvent(MessagePriority.MEDIUM, conversation, event);
                 }
             } else if (conversation == null) {
                 // Either a part or a kick
@@ -170,13 +167,19 @@ public final class ServiceEventInterceptor {
     @Subscribe(threadType = ThreadType.MAIN)
     public void onEvent(final QueryEvent event) {
         if (shouldStoreEvent(event)) {
-            onIRCEvent(MessagePriority.HIGH, event.user, event);
+            if (event instanceof QueryMessageWorldEvent
+                    || event instanceof QueryActionWorldEvent) {
+                onIRCEvent(MessagePriority.HIGH, event.user, event);
 
-            EventCache cache = IRCService.getEventCache(event.user.getServer());
-            CharSequence message = cache.get(event).getMessage();
+                final String message = event instanceof QueryMessageWorldEvent
+                        ? ((QueryMessageWorldEvent) event).message
+                        : ((QueryActionWorldEvent) event).action;
 
-            // Forward the event UI side
-            mHandler.post(() -> getBus().post(new OnQueryEvent(event.user, message)));
+                // Forward the event UI side
+                mHandler.post(() -> getBus().post(new OnQueryEvent(event.user, message)));
+            } else {
+                onIRCEvent(MessagePriority.MEDIUM, event.user, event);
+            }
         }
     }
 
