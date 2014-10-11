@@ -430,9 +430,9 @@ public class MainActivity extends ActionBarActivity implements ServerListFragmen
                 UIUtils.toggleSlidingPane(mSlidingPane);
                 return true;
             case R.id.activity_main_ab_actions:
-                UIUtils.toggleDrawerLayout(mDrawerLayout, mNavigationDrawerView);
+                boolean nowOpen = UIUtils.toggleDrawerLayout(mDrawerLayout, mNavigationDrawerView);
                 // If the drawer is now closed then we don't need to pass on the event
-                return !mDrawerLayout.isDrawerOpen(mNavigationDrawerView);
+                return !nowOpen;
             case R.id.activity_main_ab_users:
                 if (!mDrawerLayout.isDrawerOpen(mNavigationDrawerView)) {
                     mDrawerLayout.openDrawer(mNavigationDrawerView);
