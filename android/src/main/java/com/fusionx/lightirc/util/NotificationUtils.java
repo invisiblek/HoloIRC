@@ -83,7 +83,7 @@ public class NotificationUtils {
         }
     }
 
-    public static void notifyOutOfApp(final Context context, CharSequence message,
+    public static void notifyOutOfApp(final Context context, final String message,
             Nick user, final Conversation<? extends Event> conversation, final boolean channel) {
         if (!AppPreferences.getAppPreferences().isOutOfAppNotification()) {
             return;
@@ -103,14 +103,17 @@ public class NotificationUtils {
             sNotificationQueryCount++;
         }
 
-        if (message != null) {
+        CharSequence storedMessage = message;
+
+        if (storedMessage != null) {
             if (user != null) {
-                message = prependHighlightedText(context, user.getNickAsString(), message);
+                storedMessage = prependHighlightedText(context,
+                        user.getNickAsString(), storedMessage);
             }
             if (sNotificationMessages.size() >= MAX_NOTIFICATION_LINES) {
                 sNotificationMessages.remove(0);
             }
-            sNotificationMessages.add(Pair.create(server.getId(), message));
+            sNotificationMessages.add(Pair.create(server.getId(), storedMessage));
         }
 
         // If we're here, the activity has not picked it up - fire off a notification
@@ -125,6 +128,7 @@ public class NotificationUtils {
         builder.setNumber(totalNotificationCount);
         builder.setColor(context.getResources().getColor(R.color.colorPrimary));
         builder.setCategory(NotificationCompat.CATEGORY_EMAIL);
+        builder.setPriority(NotificationCompat.PRIORITY_HIGH);
 
         final Intent resultIntent = new Intent(RECEIVE_NOTIFICATION_ACTION);
         resultIntent.putExtra("server_name", conversation.getServer().getTitle());
@@ -149,11 +153,12 @@ public class NotificationUtils {
             int titleResId = channel
                     ? R.string.notification_mentioned_title : R.string.notification_queried_title;
             text = context.getString(titleResId, conversation.getId(), server.getId());
+            // Use message, not storedMessage, to keep the user name out of the notification
             if (message != null) {
                 String title = context.getString(R.string.notification_mentioned_bigtext_title,
                         conversation.getId(), server.getId());
                 builder.setStyle(new NotificationCompat.BigTextStyle()
-                        .bigText(message)
+                        .bigText(ensureMinimumSize(message))
                         .setBigContentTitle(title));
             }
         } else {
@@ -192,16 +197,18 @@ public class NotificationUtils {
         builder.setContentText(text);
         builder.setTicker(text);
 
+        int defaults = 0;
         if (outApp.contains(context.getString(R.string.notification_value_audio))) {
-            final Uri notification = RingtoneManager.getDefaultUri(TYPE_NOTIFICATION);
-            builder.setSound(notification);
+            defaults |= Notification.DEFAULT_SOUND;
         }
         if (outApp.contains(context.getString(R.string.notification_value_vibrate))) {
-            builder.setVibrate(new long[]{0, 500});
+            defaults |= Notification.DEFAULT_VIBRATE;
         }
         if (outApp.contains(context.getString(R.string.notification_value_lights))) {
-            builder.setDefaults(Notification.DEFAULT_LIGHTS);
+            defaults |= Notification.DEFAULT_LIGHTS;
         }
+
+        builder.setDefaults(defaults);
 
         final Intent intent = new Intent(CANCEL_NOTIFICATION_ACTION);
         final PendingIntent deleteIntent = PendingIntent.getBroadcast(context, 0, intent,
@@ -209,6 +216,13 @@ public class NotificationUtils {
         builder.setDeleteIntent(deleteIntent);
 
         notificationManager.notify(NOTIFICATION_MENTION, builder.build());
+    }
+
+    private static String ensureMinimumSize(String message) {
+        if (message.length() < 50 && message.indexOf('\n') < 0) {
+            return message + "\n";
+        }
+        return message;
     }
 
     private static String buildNotificationContentTextWithCounts(Context context) {

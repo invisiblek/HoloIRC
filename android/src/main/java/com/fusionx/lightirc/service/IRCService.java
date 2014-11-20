@@ -262,7 +262,7 @@ public class IRCService extends Service {
         builder.setContentTitle(getString(R.string.app_name));
         builder.setSmallIcon(R.drawable.ic_notification_small);
         builder.setContentIntent(getMainActivityIntent());
-        builder.setPriority(NotificationCompat.PRIORITY_LOW);
+        builder.setPriority(NotificationCompat.PRIORITY_MIN);
         builder.setCategory(NotificationCompat.CATEGORY_SERVICE);
         builder.setOngoing(true);
         builder.setLocalOnly(true);
