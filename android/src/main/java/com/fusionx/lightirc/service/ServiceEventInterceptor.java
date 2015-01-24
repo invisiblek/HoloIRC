@@ -195,7 +195,7 @@ public final class ServiceEventInterceptor {
     @Subscribe(threadType = ThreadType.MAIN)
     public void onEvent(final StatusChangeEvent event) {
         ConnectionStatus newStatus = event.server.getStatus();
-        if (mLastStatus != null && mLastStatus != newStatus) {
+        if (mLastStatus != newStatus) {
             // forward the event UI side
             mHandler.post(() -> getBus().post(new OnServerStatusChanged(event.server, newStatus)));
         }

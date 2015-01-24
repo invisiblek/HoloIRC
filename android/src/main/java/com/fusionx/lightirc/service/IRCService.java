@@ -282,7 +282,8 @@ public class IRCService extends Service {
 
     private Notification getNotification() {
         Set<? extends Server> servers = mConnectionManager.getImmutableServerSet();
-        int connectedCount = 0, disconnectedCount = 0, reconnectingCount = 0;
+        int connectedCount = 0, disconnectedCount = 0;
+        int connectingCount = 0, reconnectingCount = 0;
 
         for (Server server : servers) {
             switch (server.getStatus()) {
@@ -292,6 +293,8 @@ public class IRCService extends Service {
                     }
                     break;
                 case CONNECTING:
+                    connectingCount++;
+                    break;
                 case CONNECTED:
                     connectedCount++;
                     break;
@@ -301,12 +304,21 @@ public class IRCService extends Service {
             }
         }
 
-        final int totalCount = disconnectedCount + connectedCount + reconnectingCount;
+        final int totalCount = disconnectedCount + connectedCount
+                + connectingCount + reconnectingCount;
         final StringBuilder publicText = new StringBuilder();
 
         if (connectedCount > 0) {
             publicText.append(getResources().getQuantityString(
                     R.plurals.server_connection, connectedCount, connectedCount));
+        }
+        if (connectingCount > 0) {
+            if (publicText.length() > 0) {
+                publicText.append(", ");
+            }
+            publicText.append(getResources().getQuantityString(
+                    R.plurals.server_connecting, connectingCount, connectingCount));
+
         }
         if (reconnectingCount > 0) {
             if (publicText.length() > 0) {
@@ -348,6 +360,8 @@ public class IRCService extends Service {
             final int formatResId;
             if (connectedCount > 0) {
                 formatResId = R.string.notification_connected_title;
+            } else if (connectingCount > 0) {
+                formatResId = R.string.notification_connecting_title;
             } else if (reconnectingCount > 0) {
                 formatResId = R.string.notification_reconnecting_title;
             } else {
@@ -375,9 +389,15 @@ public class IRCService extends Service {
 
         final PendingIntent intent = PendingIntent.getBroadcast(this, 0,
                 new Intent(DISCONNECT_ALL_INTENT), PendingIntent.FLAG_UPDATE_CURRENT);
-        int disconnectActionResId = totalCount > 1
-                ? R.string.notification_action_disconnect_all
-                : R.string.notification_action_disconnect;
+        final int disconnectActionResId;
+        if (connectedCount == 0 && connectingCount == 0) {
+            disconnectActionResId = totalCount > 1
+                    ? R.string.notification_action_close_all : R.string.notification_action_close;
+        } else {
+            disconnectActionResId = totalCount > 1
+                    ? R.string.notification_action_disconnect_all
+                    : R.string.notification_action_disconnect;
+        }
         builder.addAction(R.drawable.ic_clear_light, getString(disconnectActionResId), intent);
 
         return builder.build();
